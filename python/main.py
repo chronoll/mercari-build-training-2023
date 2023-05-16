@@ -8,7 +8,7 @@ from fastapi import FastAPI, Form, HTTPException,UploadFile
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 
-items_dict={"items":[]}
+#items_dict={"items":[]}
 
 app = FastAPI()
 logger = logging.getLogger("uvicorn")
@@ -36,26 +36,35 @@ def root():
     return {"message": "Hello, world!"}
 
 @app.post("/items")
-def add_item(name: str = Form(...),category:str=Form(),image:UploadFile=Form(...)):
-    print(name,category,image)
+def add_item(name: str = Form(...),category:str=Form(...),image:UploadFile=Form(...)):
     original_image_path=image.filename
     hashed_str=str(hash_image(original_image_path))
     jpg_name=hashed_str+'.jpg'
     shutil.copy(images/original_image_path, images/jpg_name)
-    new_item={"name":name,"category":category,"image":hashed_str}
-    items_dict["items"].append(new_item)
+    new_item={"name":name,"category":category,"image":jpg_name}
+    try:
+        with open("items.json",'r')as f:
+            data=json.load(f)
+    except:
+        data={"items":[]}
     with open("items.json",'w')as f:
-        json.dump(items_dict,f)
+        data["items"].append(new_item)
+        json.dump(data,f)
     logger.info(f"Receive item: {name}")
-    return {"message": f"item received: {type(image)}"}
+    logger.info(f"Receive category: {category}")
+    logger.info(f"Receive image:{jpg_name}")
+    return {"message": f"item received: {name}"}
 
 @app.get("/items")
 def get_all_item():
-    return items_dict
+    with open('items.json','r')as f:
+        return json.load(f)
 
 @app.get("/items/{item_id}")
 def get_one_item(item_id:int):
-    return items_dict["items"][item_id-1]
+    with open('items.json','r')as f:
+        data=json.load(f)
+        return data['items'][item_id-1]
 
 @app.get("/image/{image_filename}")
 async def get_image(image_filename):
