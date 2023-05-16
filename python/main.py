@@ -4,11 +4,13 @@ import pathlib
 import json
 import hashlib
 import shutil
+import sqlite3
 from fastapi import FastAPI, Form, HTTPException,UploadFile
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 
-#items_dict={"items":[]}
+
+
 
 app = FastAPI()
 logger = logging.getLogger("uvicorn")
@@ -31,25 +33,122 @@ def hash_image(original_image_path):
     hash.update(original_image)
     return hash.hexdigest()
 
+def save_to_sql(name,category,jpg_name):
+    conn=sqlite3.connect('../db/mercari.sqlite3')
+    c=conn.cursor()
+    try:
+        c.execute("create table items(id integer primary key,name text,category_id integer,image_filename text)")
+    except sqlite3.OperationalError:
+        pass
+    save_schema()
+    save_category(category)
+    sql="insert into items(name,category_id,image_filename) values (?,?,?)"
+    category_id=get_category_id(category)
+    c.execute(sql,(name,category_id,jpg_name))
+    conn.commit()
+    conn.close()
+
+def fetch_all_rows():
+    conn=sqlite3.connect('../db/mercari.sqlite3')
+    c=conn.cursor()
+    c.execute("select * from items")
+    sql_data=c.fetchall()
+    conn.commit()
+    conn.close()
+    return format_data(sql_data)
+
+def fetch_rows_by_key(keyword):
+    conn=sqlite3.connect('../db/mercari.sqlite3')
+    c=conn.cursor()
+    sql="select * from items where name=?"
+    c.execute(sql,(keyword,))
+    sql_data=c.fetchall()
+    conn.commit()
+    conn.close()
+    return format_data(sql_data)
+
+def fetch_rows_by_id(id):
+    conn=sqlite3.connect('../db/mercari.sqlite3')
+    c=conn.cursor()
+    sql="select items.id,items.name,categories.name,image_filename from items inner join categories on items.category_id= categories.id where items.id=?"
+    c.execute(sql,(id,))
+    sql_data=c.fetchall()
+    conn.commit()
+    conn.close()
+    return format_data(sql_data)
+
+def format_data(sql_data):
+    items_dict={"items":[]}
+    for item in sql_data:
+        dict={
+            "name":item[1],
+            "category":item[2],
+            "image":item[3]
+        }
+        items_dict["items"].append(dict)
+    return items_dict
+
+def get_schema():
+    conn=sqlite3.connect('../db/mercari.sqlite3')
+    c=conn.cursor()
+    c.execute("select * from sqlite_master where type='table' and name='items'")
+    schema=c.fetchall()
+    conn.commit()
+    conn.close()
+    return str(schema)
+
+def save_schema():
+    conn=sqlite3.connect('../db/items.db')
+    c=conn.cursor()
+    c.execute("SELECT name FROM sqlite_master WHERE type='table';") 
+    tables = c.fetchall()
+    if tables: #tableが存在するか判定
+        conn.close()
+        logger.info("schema has already exited")
+        return 
+    c.execute('''CREATE TABLE schemas(schema text)''')
+    sql="INSERT INTO schemas(schema) VALUES (?)"
+    c.execute(sql,(get_schema(),))
+    conn.commit()
+    conn.close()
+    
+def save_category(category):
+    conn=sqlite3.connect('../db/mercari.sqlite3')
+    c=conn.cursor()
+    try:
+        c.execute("create table categories(id integer primary key,name text unique)")
+    except sqlite3.OperationalError:
+        pass
+    sql="insert into categories(name) values (?)"
+    try:
+        c.execute(sql,(category,))
+    except sqlite3.IntegrityError:
+        pass
+    conn.commit()
+    conn.close()
+
+def get_category_id(category):
+    conn=sqlite3.connect('../db/mercari.sqlite3')
+    c=conn.cursor()
+    sql="select id from categories where name=?"
+    c.execute(sql,(category,))
+    category_id=c.fetchall()[0][0]
+    conn.commit()
+    conn.close()
+    return category_id
+
+
 @app.get("/")
 def root():
     return {"message": "Hello, world!"}
 
 @app.post("/items")
-def add_item(name: str = Form(...),category:str=Form(...),image:UploadFile=Form(...)):
+def add_item(name: str = Form(...),category:str=Form(),image:UploadFile=Form(...)):
     original_image_path=image.filename
     hashed_str=str(hash_image(original_image_path))
     jpg_name=hashed_str+'.jpg'
     shutil.copy(images/original_image_path, images/jpg_name)
-    new_item={"name":name,"category":category,"image":jpg_name}
-    try:
-        with open("items.json",'r')as f:
-            data=json.load(f)
-    except:
-        data={"items":[]}
-    with open("items.json",'w')as f:
-        data["items"].append(new_item)
-        json.dump(data,f)
+    save_to_sql(name,category,jpg_name)
     logger.info(f"Receive item: {name}")
     logger.info(f"Receive category: {category}")
     logger.info(f"Receive image:{jpg_name}")
@@ -57,14 +156,11 @@ def add_item(name: str = Form(...),category:str=Form(...),image:UploadFile=Form(
 
 @app.get("/items")
 def get_all_item():
-    with open('items.json','r')as f:
-        return json.load(f)
+    return fetch_all_rows()
 
 @app.get("/items/{item_id}")
 def get_one_item(item_id:int):
-    with open('items.json','r')as f:
-        data=json.load(f)
-        return data['items'][item_id-1]
+    return fetch_rows_by_id(item_id)
 
 @app.get("/image/{image_filename}")
 async def get_image(image_filename):
@@ -80,4 +176,6 @@ async def get_image(image_filename):
 
     return FileResponse(image)
 
-
+@app.get("/search")
+def search_name(keyword:str):
+    return fetch_rows_by_key(keyword)
