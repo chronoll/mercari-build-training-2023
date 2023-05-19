@@ -29,8 +29,8 @@ def hash_image(original_image_path):
     with open(images/original_image_path,'rb')as f:
         original_image=f.read()
     
-    hash=hashlib.sha256()
-    hash.update(original_image)
+    hash_=hashlib.sha256()
+    hash_.update(original_image)
     return hash.hexdigest()
 
 def save_to_sql(name,category,jpg_name):
@@ -80,12 +80,12 @@ def fetch_rows_by_id(id):
 def format_data(sql_data):
     items_dict={"items":[]}
     for item in sql_data:
-        dict={
+        dict_for_add={
             "name":item[1],
             "category":item[2],
             "image":item[3]
-        }
-        items_dict["items"].append(dict)
+        }    
+        items_dict["items"].append(dict_for_add)
     return items_dict
 
 def get_schema():
