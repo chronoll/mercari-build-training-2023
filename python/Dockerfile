@@ -2,8 +2,6 @@ FROM python:3.10.6-alpine
 
 WORKDIR /app
 
-RUN apk add --no-cache curl
-
 RUN addgroup -S mercari && adduser -S trainee -G mercari
 
 COPY requirements.txt requirements.txt
