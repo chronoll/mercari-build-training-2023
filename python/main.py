@@ -84,7 +84,7 @@ def format_data(sql_data):
             "name":item[1],
             "category":item[2],
             "image":item[3]
-        }
+        }    
         items_dict["items"].append(dict_for_add)
     return items_dict
 
