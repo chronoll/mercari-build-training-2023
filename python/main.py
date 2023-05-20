@@ -140,8 +140,8 @@ def get_category_id(category):
 
 @app.get("/")
 def root():
-    return images
-
+    return {"message": "Hello, world!"}
+    
 @app.post("/items")
 #def add_item(name: str = Form(...),category:str=Form(),image:UploadFile=Form(...)):
 def add_item(name: str = Form(...),category:str=Form(),image:str=Form(...)):
