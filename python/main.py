@@ -15,7 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 app = FastAPI()
 logger = logging.getLogger("uvicorn")
 logger.level = logging.INFO
-images = pathlib.Path(__file__).parent.resolve() / "images"
+images = pathlib.Path(__file__).parent.resolve() / "images" #/app/images
 origins = [ os.environ.get('FRONT_URL', 'http://localhost:3000') ]
 app.add_middleware(
     CORSMiddleware,
@@ -31,7 +31,7 @@ def hash_image(original_image_path):
     
     hash_=hashlib.sha256()
     hash_.update(original_image)
-    return hash.hexdigest()
+    return hash_.hexdigest()
 
 def save_to_sql(name,category,jpg_name):
     conn=sqlite3.connect('../db/mercari.sqlite3')
@@ -141,10 +141,12 @@ def get_category_id(category):
 @app.get("/")
 def root():
     return {"message": "Hello, world!"}
-
+    
 @app.post("/items")
 def add_item(name: str = Form(...),category:str=Form(),image:UploadFile=Form(...)):
+#def add_item(name: str = Form(...),category:str=Form(),image:str=Form(...)):
     original_image_path=image.filename
+    #original_image_path=image
     hashed_str=str(hash_image(original_image_path))
     jpg_name=hashed_str+'.jpg'
     shutil.copy(images/original_image_path, images/jpg_name)
