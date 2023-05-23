@@ -143,10 +143,10 @@ def root():
     return {"message": "Hello, world!"}
     
 @app.post("/items")
-#def add_item(name: str = Form(...),category:str=Form(),image:UploadFile=Form(...)):
-def add_item(name: str = Form(...),category:str=Form(),image:str=Form(...)):
-    #original_image_path=image.filename
-    original_image_path=image
+def add_item(name: str = Form(...),category:str=Form(),image:UploadFile=Form(...)):
+#def add_item(name: str = Form(...),category:str=Form(),image:str=Form(...)):
+    original_image_path=image.filename
+    #original_image_path=image
     hashed_str=str(hash_image(original_image_path))
     jpg_name=hashed_str+'.jpg'
     shutil.copy(images/original_image_path, images/jpg_name)
